@@ -1,6 +1,6 @@
 # Configuração de Banco de Dados em Nuvem
 
-Este documento explica como configurar o banco de dados em nuvem para o projeto API de Gerenciamento de Consultas Médicas.
+Este documento explica como configurar o banco de dados em nuvem para o projeto API de Consultas Médicas.
 
 ## Visão Geral
 
@@ -234,7 +234,7 @@ print(get_random_secret_key())
 ## Estrutura de Arquivos
 
 ```
-api-gerenciamento-consultas-medicas/
+api-consultas-medicas/
 ├── .env.example          # Template de variáveis de ambiente
 ├── .env.local            # Desenvolvimento (não commitado)
 ├── .env.staging          # Staging (não commitado)
