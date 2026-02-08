@@ -2,7 +2,7 @@
 Local development settings
 """
 
-from .base import *  # noqa: F403
+from .base import *
 
 # Override settings for local development
 DEBUG = True

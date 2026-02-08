@@ -1,6 +1,6 @@
-# API de Consultas Médicas - Lacrei Saúde 🌈
+# API de Consultas Médicas
 
-API RESTful desenvolvida para o desafio técnico da Lacrei Saúde, com o objetivo de facilitar o gerenciamento de profissionais e consultas médicas, promovendo a inclusão e acessibilidade.
+API RESTful desenvolvida com o objetivo de facilitar o gerenciamento de profissionais e consultas médicas, promovendo a inclusão e acessibilidade.
 
 ## 🚀 Tecnologias Utilizadas
 
@@ -97,7 +97,7 @@ Em caso de falha:
 
 ---
 
-## 💳 Integração Assas (Bônus - Proposta)
+## 💳 Integração Assas
 
 Para o split de pagamentos:
 - **Fluxo**: Ao confirmar uma consulta (`Appointment`), criar uma cobrança na API da Assas.
@@ -106,6 +106,4 @@ Para o split de pagamentos:
 
 ---
 
-## 💙 Lacrei Saúde
-
-Este projeto reflete o compromisso com a qualidade técnica e o impacto social. **Código é cuidado.**
+*Desenvolvido por Tony Souza*
