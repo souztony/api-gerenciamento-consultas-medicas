@@ -62,11 +62,15 @@ docker-compose exec web python manage.py test
 
 ---
 
+---
+
 ## 📖 Documentação da API (Swagger)
 
 A documentação interativa está disponível nos seguintes endpoints:
 - **Swagger UI**: `http://localhost:8000/api/docs/`
 - **Redoc**: `http://localhost:8000/api/redoc/`
+
+Para detalhes sobre decisões técnicas, desafios e melhoria de arquitetura, consulte o [DECISIONS.md](file:///c:/Users/tonys/OneDrive/Área de Trabalho/api-consultas-medicas/DECISIONS.md).
 
 ---
 
@@ -78,28 +82,31 @@ A pipeline do GitHub Actions (.github/workflows/ci-cd.yml) automatiza o fluxo:
 3. **Build**: Criação da imagem Docker e push para o Amazon ECR.
 4. **Deploy**: Configurado para AWS App Runner via GitHub Actions.
    > [!NOTE]
-   > O step de deploy foi comentado no arquivo `ci-cd.yml` para evitar custos de infraestrutura pessoal durante o desafio técnico, estando pronto para ser ativado em um ambiente organizacional.
+   > O step de deploy final (`aws apprunner update-service`) está comentado no arquivo `ci-cd.yml` para evitar falha por falta de credenciais AWS em repositórios pessoais, mas a lógica de build e tag de imagem está 100% pronta.
 
 ### Estratégia de Rollback 🔄
 
-Propomos a utilização de **Blue/Green Deployment** via AWS App Runner ou ECS.
+Propomos a utilização de **Blue/Green Deployment** via AWS App Runner.
 Em caso de falha:
 1. **Reverter Commit**: O pipeline detecta o revert e faz o push da imagem estável anterior.
-2. **Tag de Imagem**: Repontuação da tag `latest` para a versão anterior no ECR.
+2. **Health Checks**: O AWS App Runner mantém a versão anterior ativa até que os novos containers estejam saudáveis.
 
 ---
 
 ## 🛡️ Segurança e Logs
 
 1. **Autenticação**: Foi implementado JWT para todas as rotas da API. Use `/api/token/` para obter as credenciais.
-2. **Middleware de Logs**: Todas as requisições são logadas contendo IP, usuário, método e path para conformidade e segurança.
-3. **Sanitização**: O Django REST Framework cuida nativamente da proteção contra SQL Injection e sanitização básica via Serializers.
+2. **Middleware de Logs**: Todas as requisições são logadas contendo IP, usuário, método e path.
+3. **Segurança de Dados**: 
+   - **SQL Injection**: Proteção nativa garantida pelo uso do Django ORM.
+   - **Sanitização**: Implementada via Serializers do DRF para todos os inputs.
+   - **CORS**: Configurado para aceitar apenas domínios autorizados.
 
 ---
 
 ## 💳 Integração Assas (Mock)
 
-A API agora conta com um serviço de mock (`AsaasService`) que demonstra como seria feito o split de pagamento (porcentagem para o profissional e para a Lacrei Saúde) no momento em que uma consulta é agendada.
+A API conta com um serviço de mock (`AsaasService`) que demonstra o fluxo de split de pagamento entre o profissional e a Lacrei Saúde.
 
 ---
 
