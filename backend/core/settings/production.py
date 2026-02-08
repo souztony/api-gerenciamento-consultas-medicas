@@ -2,12 +2,12 @@
 Production environment settings
 """
 
-from .base import *
+from .base import *  # noqa: F403
 
 # Security settings for production
 DEBUG = False
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())  # noqa: F405
 
 # Security settings
 SECURE_SSL_REDIRECT = True
@@ -21,11 +21,11 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
 # CORS settings for production
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv())
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv())  # noqa: F405
 CORS_ALLOW_CREDENTIALS = True
 
 # Database connection pooling for production
-DATABASES['default']['CONN_MAX_AGE'] = config('DB_CONN_MAX_AGE', default=600, cast=int)
+DATABASES['default']['CONN_MAX_AGE'] = config('DB_CONN_MAX_AGE', default=600, cast=int)  # noqa: F405
 
 # Logging configuration for production
 LOGGING = {
