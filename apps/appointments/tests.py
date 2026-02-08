@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -7,6 +8,16 @@ from django.utils import timezone
 
 class AppointmentTests(APITestCase):
     def setUp(self):
+        # Criar usuário para autenticação
+        self.user = User.objects.create_user(username='testuser', password='password123')
+        # Obter token JWT
+        response = self.client.post(reverse('token_obtain_pair'), {
+            'username': 'testuser',
+            'password': 'password123'
+        })
+        self.token = response.data['access']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+
         self.professional = Professional.objects.create(
             social_name="Dr. Alex Lima",
             profession="Endocrinologista",
@@ -21,12 +32,21 @@ class AppointmentTests(APITestCase):
 
     def test_create_appointment(self):
         """
-        Garantir que podemos criar uma nova consulta vinculada a um profissional.
+        Garantir que podemos criar uma nova consulta (Autenticado).
+        Simula também o acionamento do mock da Asaas (verificável via logs).
         """
         response = self.client.post(self.url, self.appointment_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Appointment.objects.count(), 1)
         self.assertEqual(Appointment.objects.get().professional, self.professional)
+
+    def test_create_appointment_unauthenticated(self):
+        """
+        Garantir que não podemos criar consulta sem autenticação.
+        """
+        self.client.credentials()
+        response = self.client.post(self.url, self.appointment_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_appointments_by_professional_id(self):
         """
@@ -63,5 +83,3 @@ class AppointmentTests(APITestCase):
         response = self.client.patch(update_url, {"date": new_date}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         appointment.refresh_from_db()
-        # Nota: Dependendo da precisão do ISO format, pode haver pequenas diferenças, 
-        # mas aqui testamos o sucesso da requisição e atualização.

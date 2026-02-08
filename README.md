@@ -75,34 +75,29 @@ A documentação interativa está disponível nos seguintes endpoints:
 A pipeline do GitHub Actions (.github/workflows/ci-cd.yml) automatiza o fluxo:
 1. **Lint**: Verificação de qualidade de código com `ruff`.
 2. **Testes**: Execução dos testes automatizados.
-3. **Build**: Criação da imagem Docker.
-4. **Deploy**: Placeholder para deploy automatizado na AWS (Staging e Produção).
+3. **Build**: Criação da imagem Docker e push para o Amazon ECR.
+4. **Deploy**: Deploy automático no AWS App Runner para Staging e Produção usando os segredos do GitHub.
 
 ### Estratégia de Rollback 🔄
 
-Propomos a utilização de **Blue/Green Deployment** via AWS ECS ou App Runner.
+Propomos a utilização de **Blue/Green Deployment** via AWS App Runner ou ECS.
 Em caso de falha:
-1. **Reverter Commit**: O pipeline detecta o revert na branch principal e re-executa o deploy da versão estável anterior.
-2. **Tráfego**: O Load Balancer redireciona o tráfego de volta para o ambiente estável (Green) instantaneamente.
+1. **Reverter Commit**: O pipeline detecta o revert e faz o push da imagem estável anterior.
+2. **Tag de Imagem**: Repontuação da tag `latest` para a versão anterior no ECR.
 
 ---
 
-## 🧠 Justificativas Técnicas
+## 🛡️ Segurança e Logs
 
-1. **Django REST Framework**: Escolhido pela robustez, ecossistema e facilidade de implementar CRUDs seguros rapidamente.
-2. **JWT (SimpleJWT)**: Implementado para garantir autenticação stateless e segura.
-3. **Poetry**: Utilizado para garantir reprodutibilidade das dependências e isolamento do ambiente.
-4. **PostgreSQL**: Banco de dados relacional padrão da indústria, ideal para garantir integridade via chaves estrangeiras.
-5. **Docker Multi-stage**: O Dockerfile foi otimizado para ser leve, instalando apenas o necessário para a execução.
+1. **Autenticação**: Foi implementado JWT para todas as rotas da API. Use `/api/token/` para obter as credenciais.
+2. **Middleware de Logs**: Todas as requisições são logadas contendo IP, usuário, método e path para conformidade e segurança.
+3. **Sanitização**: O Django REST Framework cuida nativamente da proteção contra SQL Injection e sanitização básica via Serializers.
 
 ---
 
-## 💳 Integração Assas
+## 💳 Integração Assas (Mock)
 
-Para o split de pagamentos:
-- **Fluxo**: Ao confirmar uma consulta (`Appointment`), criar uma cobrança na API da Assas.
-- **Split**: Configurar o `split` no objeto de cobrança enviando o ID da conta do profissional na Assas.
-- **Arquitetura**: Utilizar Webhooks para capturar eventos de pagamento e atualizar o status da consulta no sistema.
+A API agora conta com um serviço de mock (`AsaasService`) que demonstra como seria feito o split de pagamento (porcentagem para o profissional e para a Lacrei Saúde) no momento em que uma consulta é agendada.
 
 ---
 

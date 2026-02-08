@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -5,6 +6,16 @@ from .models import Professional
 
 class ProfessionalTests(APITestCase):
     def setUp(self):
+        # Criar usuário para autenticação
+        self.user = User.objects.create_user(username='testuser', password='password123')
+        # Obter token JWT
+        response = self.client.post(reverse('token_obtain_pair'), {
+            'username': 'testuser',
+            'password': 'password123'
+        })
+        self.token = response.data['access']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+
         self.professional_data = {
             "social_name": "Dr. Joane Silva",
             "profession": "Psicóloga",
@@ -15,12 +26,20 @@ class ProfessionalTests(APITestCase):
 
     def test_create_professional(self):
         """
-        Garantir que podemos criar um novo profissional.
+        Garantir que podemos criar um novo profissional (Autenticado).
         """
         response = self.client.post(self.url, self.professional_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Professional.objects.count(), 1)
         self.assertEqual(Professional.objects.get().social_name, 'Dr. Joane Silva')
+
+    def test_create_professional_unauthenticated(self):
+        """
+        Garantir que não podemos criar profissional sem autenticação.
+        """
+        self.client.credentials() # Limpar tokens
+        response = self.client.post(self.url, self.professional_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_professionals(self):
         """

@@ -8,4 +8,4 @@ class ProfessionalViewSet(viewsets.ModelViewSet):
     """
     queryset = Professional.objects.all()
     serializer_class = ProfessionalSerializer
-    permission_classes = [permissions.AllowAny] # Temporariamente AllowAny para facilitar testes iniciais
+    # permission_classes = [permissions.AllowAny] # Removido para seguir configuração global (IsAuthenticated)

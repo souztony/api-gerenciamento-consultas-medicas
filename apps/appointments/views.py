@@ -8,7 +8,13 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     """
     queryset = Appointment.objects.all()
     serializer_class = AppointmentSerializer
-    permission_classes = [permissions.AllowAny]
+    # permission_classes = [permissions.AllowAny]
+
+    def perform_create(self, serializer):
+        appointment = serializer.save()
+        # Trigger Asaas Mock
+        from .services import AsaasService
+        AsaasService.create_payment_with_split(appointment)
 
     def get_queryset(self):
         """
