@@ -12,7 +12,7 @@ class ProfessionalTests(APITestCase):
         response = self.client.post(reverse('token_obtain_pair'), {
             'username': 'testuser',
             'password': 'password123'
-        })
+        }, format='json')
         self.token = response.data['access']
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
 
