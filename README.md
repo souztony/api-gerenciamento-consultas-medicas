@@ -149,11 +149,12 @@ poetry run pytest
 poetry run pytest -v
 
 # Com cobertura
-poetry run pytest --cov=apps --cov-report=term --cov-report=html
+poetry run pytest --cov=apps --cov-report=term --cov-report=html --cov-fail-under=90
 
 # Executar testes específicos
 poetry run pytest apps/professionals/tests.py
 poetry run pytest apps/appointments/tests.py
+poetry run pytest apps/accounts/tests.py
 ```
 
 ### Cobertura de Testes
@@ -254,10 +255,11 @@ O pipeline é executado em **push** e **pull requests** para as branches `main` 
 2. **Tests**
    - Execução de testes unitários e de integração
    - Geração de relatório de cobertura
+   - Falha automática se cobertura total < 90%
    - Upload para Codecov
 
 3. **Security**
-   - Verificação de vulnerabilidades com Safety
+   - Verificação de vulnerabilidades com pip-audit
    - Análise de dependências
 
 4. **Build**
@@ -268,7 +270,7 @@ O pipeline é executado em **push** e **pull requests** para as branches `main` 
    - Login no Amazon ECR
    - Push da imagem para ECR
    - Tag da versão deployada
-   - Deploy automático (quando configurado)
+   - Deploy automático no App Runner quando ARN do ambiente estiver configurado
 
 ### Configuração de Secrets
 
@@ -351,12 +353,16 @@ poetry run python manage.py migrate <app_name> <migration_name>
    - Configuração restritiva por padrão
    - Whitelist de origens permitidas
 
-4. **Docker**
+4. **Proteções de API**
+   - Rate limiting global para usuários autenticados e anônimos
+   - Cabeçalhos HTTP de segurança aplicados em todas as respostas
+
+5. **Docker**
    - Execução como usuário não-root
    - Multi-stage build para imagens menores
    - Healthchecks configurados
 
-5. **Logging**
+6. **Logging**
    - Registro de todas as requisições
    - IP do cliente e usuário autenticado
    - Tempo de resposta
@@ -364,7 +370,6 @@ poetry run python manage.py migrate <app_name> <migration_name>
 ### Recomendações Adicionais
 
 - Sempre use HTTPS em produção
-- Configure rate limiting (ex: django-ratelimit)
 - Implemente monitoramento (ex: Sentry)
 - Faça backups regulares do banco de dados
 - Mantenha dependências atualizadas

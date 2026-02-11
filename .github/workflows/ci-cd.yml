@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, staging ]
+    branches: [main, staging]
   pull_request:
-    branches: [ main, staging ]
+    branches: [main, staging]
 
 jobs:
   lint:
@@ -12,20 +12,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      
+
       - name: Install Ruff
         run: |
           python -m pip install --upgrade pip
           pip install ruff
-      
+
       - name: Run Ruff Linting
         run: ruff check .
-      
+
       - name: Run Ruff Format Check
         run: ruff format --check .
 
@@ -35,32 +35,32 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      
+
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-      
+
       - name: Install Dependencies
-        run: |
-          poetry install --with dev --no-root
-      
-      - name: Run Tests with Coverage
+        run: poetry install --with dev --no-root
+
+      - name: Run Tests with Coverage (minimum 90%)
         env:
           SECRET_KEY: testing-secret-key-for-ci-cd-pipeline
           DB_ENGINE: django.db.backends.sqlite3
-          DB_NAME: ":memory:"
+          DB_NAME: ':memory:'
           DJANGO_SETTINGS_MODULE: backend.settings
-        run: |
-          poetry run pytest -v --cov=apps --cov-report=term --cov-report=xml
-      
+          DRF_THROTTLE_USER: 1000/min
+          DRF_THROTTLE_ANON: 1000/min
+        run: poetry run pytest -v --cov=apps --cov-report=term --cov-report=xml --cov-fail-under=90
+
       - name: Upload Coverage Report
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         if: always()
         with:
           files: ./coverage.xml
@@ -72,22 +72,24 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      
+
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-      
-      - name: Check for Security Vulnerabilities
+
+      - name: Install Dependencies
+        run: poetry install --no-root
+
+      - name: Dependency Vulnerability Audit
         run: |
-          poetry install --no-root
-          poetry run pip install safety
-          poetry run safety check --json || true
+          poetry run pip install pip-audit
+          poetry run pip-audit
 
   build:
     name: Build Docker Image
@@ -95,14 +97,12 @@ jobs:
     needs: [test, security]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build Docker Image
-        run: |
-          docker build -t lacrei-saude-backend:${{ github.sha }} .
-      
+        run: docker build -t lacrei-saude-backend:${{ github.sha }} .
+
       - name: Test Docker Image
-        run: |
-          docker run --rm lacrei-saude-backend:${{ github.sha }} python --version
+        run: docker run --rm lacrei-saude-backend:${{ github.sha }} python --version
 
   deploy:
     name: Deploy to AWS
@@ -111,7 +111,7 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -133,13 +133,26 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.ref_name }}
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.ref_name }}
-      
-      - name: Create Deployment Tag
-        run: |
-          echo "Deployed version: ${{ github.sha }} to ${{ github.ref_name }}" >> deployment.txt
-          echo "Timestamp: $(date -u)" >> deployment.txt
 
-#       - name: Deploy to AWS App Runner (Staging/Production)
-#         run: |
-#           SERVICE_ARN=${{ github.ref == 'refs/heads/main' && secrets.AWS_APP_RUNNER_ARN_PROD || secrets.AWS_APP_RUNNER_ARN_STAGING }}
-#           aws apprunner update-service --service-arn $SERVICE_ARN --source-configuration '{"ImageRepository": {"ImageIdentifier": "${{ steps.login-ecr.outputs.registry }}/lacrei-saude-backend:${{ github.sha }}", "ImageConfiguration": {"Port": "8000"}, "ImageRepositoryType": "ECR"}}'
+      - name: Resolve App Runner Service ARN
+        id: service-arn
+        run: |
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "value=${{ secrets.AWS_APP_RUNNER_ARN_PROD }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ secrets.AWS_APP_RUNNER_ARN_STAGING }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to AWS App Runner
+        if: steps.service-arn.outputs.value != ''
+        env:
+          SERVICE_ARN: ${{ steps.service-arn.outputs.value }}
+          IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/lacrei-saude-backend:${{ github.sha }}
+        run: |
+          aws apprunner update-service \
+            --service-arn "$SERVICE_ARN" \
+            --source-configuration "{\"ImageRepository\":{\"ImageIdentifier\":\"$IMAGE_URI\",\"ImageConfiguration\":{\"Port\":\"8000\"},\"ImageRepositoryType\":\"ECR\"}}"
+
+      - name: Skip deploy when ARN is not configured
+        if: steps.service-arn.outputs.value == ''
+        run: echo "App Runner ARN não configurado para esta branch. Push em ECR concluído."

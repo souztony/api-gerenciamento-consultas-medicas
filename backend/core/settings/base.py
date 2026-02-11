@@ -44,6 +44,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'backend.core.middleware.RequestLoggingMiddleware',
+    'backend.core.middleware.SecurityHeadersMiddleware',
 ]
 
 ROOT_URLCONF = 'backend.core.urls'
@@ -156,7 +157,16 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.JSONParser',
     ],
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': config('DRF_THROTTLE_USER', default='120/min'),
+        'anon': config('DRF_THROTTLE_ANON', default='30/min'),
+    },
 }
+
 
 # JWT Settings
 SIMPLE_JWT = {
