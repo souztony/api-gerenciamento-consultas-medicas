@@ -20,7 +20,7 @@ class ProfessionalTests(APITestCase):
             "social_name": "Dr. Joane Silva",
             "profession": "Psicóloga",
             "address": "Rua das Flores, 123",
-            "contact": "(11) 98888-7777"
+            "contact": "joanesilva@email.com"
         }
         self.url = reverse('professional-list')
 
@@ -84,3 +84,65 @@ class ProfessionalTests(APITestCase):
         
         response = self.client.post(self.url, invalid_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_create_professional_short_name(self):
+        """
+        Garantir que nome muito curto retorna erro de validação.
+        """
+        invalid_data = self.professional_data.copy()
+        invalid_data['social_name'] = "Dr"
+        
+        response = self.client.post(self.url, invalid_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('social_name', response.data)
+    
+    def test_create_professional_invalid_contact(self):
+        """
+        Garantir que contato inválido retorna erro.
+        """
+        invalid_data = self.professional_data.copy()
+        invalid_data['contact'] = "contato-invalido"
+        
+        response = self.client.post(self.url, invalid_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('contact', response.data)
+    
+    def test_create_professional_valid_phone(self):
+        """
+        Garantir que telefone válido é aceito.
+        """
+        valid_data = self.professional_data.copy()
+        valid_data['contact'] = "(11) 98888-7777"
+        
+        response = self.client.post(self.url, valid_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    
+    def test_get_professional_not_found(self):
+        """
+        Garantir que buscar profissional inexistente retorna 404.
+        """
+        url = reverse('professional-detail', args=[9999])
+        response = self.client.get(url, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_update_professional_unauthenticated(self):
+        """
+        Garantir que não podemos atualizar sem autenticação.
+        """
+        professional = Professional.objects.create(**self.professional_data)
+        update_url = reverse('professional-detail', args=[professional.id])
+        self.client.credentials()
+        
+        response = self.client.put(update_url, self.professional_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    
+    def test_delete_professional_unauthenticated(self):
+        """
+        Garantir que não podemos deletar sem autenticação.
+        """
+        professional = Professional.objects.create(**self.professional_data)
+        delete_url = reverse('professional-detail', args=[professional.id])
+        self.client.credentials()
+        
+        response = self.client.delete(delete_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

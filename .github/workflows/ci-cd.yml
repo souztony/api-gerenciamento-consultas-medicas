@@ -8,61 +8,111 @@ on:
 
 jobs:
   lint:
+    name: Code Linting
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install dependencies
+      
+      - name: Install Ruff
         run: |
           python -m pip install --upgrade pip
           pip install ruff
-      - name: Run Lint
+      
+      - name: Run Ruff Linting
         run: ruff check .
+      
+      - name: Run Ruff Format Check
+        run: ruff format --check .
 
   test:
+    name: Run Tests
     runs-on: ubuntu-latest
     needs: lint
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
-      - name: Install dependencies
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
+      - name: Install Dependencies
         run: |
           poetry install --with dev --no-root
-      - name: Run Tests
+      
+      - name: Run Tests with Coverage
         env:
-          SECRET_KEY: testing-secret-key
+          SECRET_KEY: testing-secret-key-for-ci-cd-pipeline
           DB_ENGINE: django.db.backends.sqlite3
           DB_NAME: ":memory:"
           DJANGO_SETTINGS_MODULE: backend.settings
         run: |
-          poetry run pytest -v
+          poetry run pytest -v --cov=apps --cov-report=term --cov-report=xml
+      
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
 
-  build:
+  security:
+    name: Security Checks
     runs-on: ubuntu-latest
-    needs: test
+    needs: lint
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
+      - name: Check for Security Vulnerabilities
+        run: |
+          poetry install --no-root
+          poetry run pip install safety
+          poetry run safety check --json || true
+
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    steps:
+      - uses: actions/checkout@v4
+      
       - name: Build Docker Image
         run: |
           docker build -t lacrei-saude-backend:${{ github.sha }} .
+      
+      - name: Test Docker Image
+        run: |
+          docker run --rm lacrei-saude-backend:${{ github.sha }} python --version
 
   deploy:
+    name: Deploy to AWS
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
     steps:
       - uses: actions/checkout@v4
       
-      - name: Configure AWS credentials
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -73,7 +123,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build, Tag, and Push Image to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: lacrei-saude-backend
@@ -83,6 +133,11 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.ref_name }}
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.ref_name }}
+      
+      - name: Create Deployment Tag
+        run: |
+          echo "Deployed version: ${{ github.sha }} to ${{ github.ref_name }}" >> deployment.txt
+          echo "Timestamp: $(date -u)" >> deployment.txt
 
 #       - name: Deploy to AWS App Runner (Staging/Production)
 #         run: |

@@ -1,37 +1,65 @@
-# Usar a imagem oficial do Python como base
-FROM python:3.12-slim
+# Multi-stage build para otimização de produção
+# Stage 1: Builder - instala dependências
+FROM python:3.12-slim AS builder
 
-# Evitar que o Python gere arquivos .pyc e que o stdout/stderr fiquem em buffer
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# Instalar dependências do sistema necessárias para o psycopg2 e Poetry
+# Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar o Poetry
+# Instalar Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
 ENV PATH="/root/.local/bin:$PATH"
 
-# Definir o diretório de trabalho
 WORKDIR /app
 
-# Copiar os arquivos de configuração do Poetry
+# Copiar arquivos de dependências
 COPY pyproject.toml poetry.lock* /app/
 
-# Configurar o Poetry para não criar ambientes virtuais dentro do container
+# Instalar dependências (sem dev)
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --no-root
+    && poetry install --no-interaction --no-ansi --no-root --only main
 
-# Copiar o restante do código do projeto
-COPY . /app/
+# Stage 2: Runtime - imagem final otimizada
+FROM python:3.12-slim
 
-# Expor a porta que o Django usará
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Instalar apenas bibliotecas runtime necessárias
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Criar usuário não-root para segurança
+RUN useradd -m -u 1000 appuser
+
+WORKDIR /app
+
+# Copiar dependências instaladas do builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copiar código da aplicação
+COPY --chown=appuser:appuser . /app/
+
+# Criar diretório para arquivos estáticos
+RUN mkdir -p /app/staticfiles && chown -R appuser:appuser /app
+
+# Mudar para usuário não-root
+USER appuser
+
+# Expor porta
 EXPOSE 8000
 
-# Comando para rodar a aplicação (usando o servidor de desenvolvimento para simplificar, 
-# mas em produção deve ser usado um Gunicorn/Uvicorn)
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/api/docs/', timeout=5)" || exit 1
+
+# Comando padrão (pode ser sobrescrito no docker-compose)
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "60", "backend.core.wsgi:application"]

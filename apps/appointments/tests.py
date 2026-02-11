@@ -25,7 +25,7 @@ class AppointmentTests(APITestCase):
             contact="alex@email.com"
         )
         self.appointment_data = {
-            "date": timezone.now().isoformat(),
+            "date": (timezone.now() + timezone.timedelta(days=1)).isoformat(),
             "professional": self.professional.id
         }
         self.url = reverse('appointment-list')
@@ -53,7 +53,7 @@ class AppointmentTests(APITestCase):
         Garantir que podemos buscar consultas pelo ID do profissional.
         """
         Appointment.objects.create(
-            date=timezone.now(),
+            date=timezone.now() + timezone.timedelta(days=1),
             professional=self.professional
         )
         # Buscar filtrando por professional_id
@@ -65,7 +65,7 @@ class AppointmentTests(APITestCase):
         """
         Garantir que falha ao tentar criar consulta sem profissional.
         """
-        invalid_data = {"date": timezone.now().isoformat()}
+        invalid_data = {"date": (timezone.now() + timezone.timedelta(days=1)).isoformat()}
         response = self.client.post(self.url, invalid_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -74,12 +74,77 @@ class AppointmentTests(APITestCase):
         Garantir que podemos atualizar a data de uma consulta.
         """
         appointment = Appointment.objects.create(
-            date=timezone.now(),
+            date=timezone.now() + timezone.timedelta(days=1),
             professional=self.professional
         )
         update_url = reverse('appointment-detail', args=[appointment.id])
-        new_date = (timezone.now() + timezone.timedelta(days=1)).isoformat()
+        new_date = (timezone.now() + timezone.timedelta(days=2)).isoformat()
         
         response = self.client.patch(update_url, {"date": new_date}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         appointment.refresh_from_db()
+    
+    def test_create_appointment_past_date(self):
+        """
+        Garantir que não podemos criar consulta com data no passado.
+        """
+        invalid_data = self.appointment_data.copy()
+        invalid_data['date'] = (timezone.now() - timezone.timedelta(days=1)).isoformat()
+        
+        response = self.client.post(self.url, invalid_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('date', response.data)
+    
+    def test_create_appointment_invalid_professional(self):
+        """
+        Garantir que criar consulta com profissional inexistente retorna erro.
+        """
+        invalid_data = self.appointment_data.copy()
+        invalid_data['professional'] = 9999
+        
+        response = self.client.post(self.url, invalid_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_get_appointment_not_found(self):
+        """
+        Garantir que buscar consulta inexistente retorna 404.
+        """
+        url = reverse('appointment-detail', args=[9999])
+        response = self.client.get(url, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_delete_appointment(self):
+        """
+        Garantir que podemos deletar uma consulta.
+        """
+        appointment = Appointment.objects.create(
+            date=timezone.now() + timezone.timedelta(days=1),
+            professional=self.professional
+        )
+        delete_url = reverse('appointment-detail', args=[appointment.id])
+        
+        response = self.client.delete(delete_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Appointment.objects.count(), 0)
+    
+    def test_delete_appointment_unauthenticated(self):
+        """
+        Garantir que não podemos deletar consulta sem autenticação.
+        """
+        appointment = Appointment.objects.create(
+            date=timezone.now() + timezone.timedelta(days=1),
+            professional=self.professional
+        )
+        delete_url = reverse('appointment-detail', args=[appointment.id])
+        self.client.credentials()
+        
+        response = self.client.delete(delete_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    
+    def test_list_appointments_unauthenticated(self):
+        """
+        Garantir que não podemos listar consultas sem autenticação.
+        """
+        self.client.credentials()
+        response = self.client.get(self.url, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
