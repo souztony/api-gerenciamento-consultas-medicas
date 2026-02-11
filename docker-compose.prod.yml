@@ -12,8 +12,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "5432:5432"
     networks:
       - app-network
 
@@ -24,7 +22,6 @@ services:
              python manage.py collectstatic --noinput &&
              gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 60 backend.core.wsgi:application"
     volumes:
-      - .:/app
       - static_volume:/app/staticfiles
     ports:
       - "8000:8000"
@@ -46,7 +43,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/docs/"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/docs/', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
