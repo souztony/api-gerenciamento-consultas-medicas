@@ -173,8 +173,8 @@ SIMPLE_JWT = {
 
 # SPECTACULAR SETTINGS
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'API de Gerenciamento de Consultas Médicas - Lacrei Saúde',
-    'DESCRIPTION': 'API para gerenciamento de profissionais e consultas médicas com foco em inclusão.',
+    'TITLE': 'API de Gerenciamento de Consultas Médicas',
+    'DESCRIPTION': 'API para gerenciamento de profissionais e consultas médicas.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,

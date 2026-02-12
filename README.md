@@ -410,8 +410,8 @@ Este projeto está sob a licença MIT.
 ## 👥 Contato
 
 **Desenvolvedor**: Tony Souza  
-**Email**: [tonysouz97@gmail.com]  
-**LinkedIn**: [https://www.linkedin.com/in/souztony/](https://www.linkedin.com/in/souztony/)
+**Email**: tonysouz97@gmail.com 
+**LinkedIn**(https://www.linkedin.com/in/souztony/)
 
 ---
 
