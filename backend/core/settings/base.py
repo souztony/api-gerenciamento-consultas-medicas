@@ -5,6 +5,7 @@ Environment-specific settings should be in local.py, staging.py, or production.p
 """
 
 from pathlib import Path
+from datetime import timedelta
 from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -137,8 +138,6 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-from datetime import timedelta
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
